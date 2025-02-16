@@ -130,7 +130,7 @@ export async function appendSheetData(data: Array<Array<string | number>>) {
             const response = await sheets.spreadsheets.values.append({
                 spreadsheetId: SPREADSHEET_ID,
                 range: targetRange,
-                valueInputOption: 'USER_ENTERED',
+                valueInputOption: 'RAW',
                 insertDataOption: 'INSERT_ROWS',
                 requestBody: {
                     values: transformedData
