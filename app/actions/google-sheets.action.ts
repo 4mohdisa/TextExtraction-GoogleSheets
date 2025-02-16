@@ -9,7 +9,7 @@ const SHEET_RANGE = 'Sheet1!A:M';
 // Enable debug logging
 const DEBUG = true;
 
-function log(...args: any[]) {
+function log(...args: unknown[]) {
     if (DEBUG) {
         console.log('[Google Sheets Debug]:', ...args);
     }
@@ -52,25 +52,29 @@ export async function getSheetData() {
         });
 
         return { success: true, data: response.data.values };
-    } catch (error: any) {
-        console.error('Error fetching sheet data:', error);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        console.error('Error fetching sheet data:', errorMessage);
         
         // Handle specific Google API errors
-        if (error.code === 403) {
-            return { 
-                success: false, 
-                error: 'Access denied. Please check if the service account has permission to access the spreadsheet.' 
-            };
+        if (error instanceof Error && 'code' in error) {
+            const googleError = error as { code: number };
+            if (googleError.code === 404) {
+                return {
+                    success: false,
+                    error: 'Spreadsheet not found'
+                };
+            }
         }
-        
-        return { 
-            success: false, 
-            error: error.message || 'Failed to fetch sheet data' 
+
+        return {
+            success: false,
+            error: errorMessage
         };
     }
 }
 
-export async function appendSheetData(data: any[]) {
+export async function appendSheetData(data: Array<Array<string | number>>) {
     try {
         const { auth, clientEmail } = await getAuthClient();
         const sheets = google.sheets({ version: 'v4', auth });
@@ -137,28 +141,35 @@ export async function appendSheetData(data: any[]) {
             return { success: true, data: response.data };
         } catch (accessError: any) {
             log('Failed to access spreadsheet:', accessError.message);
-            if (accessError.code === 403) {
-                throw new Error(
-                    `Service account ${clientEmail} does not have access to the spreadsheet. ` +
-                    'Please share the spreadsheet with this email and grant Editor access.'
-                );
+            if (accessError instanceof Error && 'code' in accessError) {
+                const googleError = accessError as { code: number };
+                if (googleError.code === 403) {
+                    throw new Error(
+                        `Service account ${clientEmail} does not have access to the spreadsheet. ` +
+                        'Please share the spreadsheet with this email and grant Editor access.'
+                    );
+                }
             }
             throw accessError;
         }
-    } catch (error: any) {
-        console.error('Error appending sheet data:', error);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        console.error('Error appending sheet data:', errorMessage);
 
         // Handle specific Google API errors
-        if (error.code === 403) {
-            return { 
-                success: false, 
-                error: error.message || 'Access denied. Make sure the service account has edit permission on the spreadsheet.' 
-            };
+        if (error instanceof Error && 'code' in error) {
+            const googleError = error as { code: number };
+            if (googleError.code === 403) {
+                return { 
+                    success: false, 
+                    error: 'Access denied. Make sure the service account has edit permission on the spreadsheet.' 
+                };
+            }
         }
 
         return { 
             success: false, 
-            error: error.message || 'Failed to append data to sheet' 
+            error: errorMessage 
         };
     }
 }

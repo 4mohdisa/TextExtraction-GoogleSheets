@@ -5,7 +5,7 @@ import ImageUpload from "@/components/image-upload"
 import DataTable from "@/components/data-table"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { getSheetData, appendSheetData } from "@/app/actions/google-sheets.action"
+import { appendSheetData } from "@/app/actions/google-sheets.action"
 import { ExtractedData } from "@/types"
 
 export default function Home() {

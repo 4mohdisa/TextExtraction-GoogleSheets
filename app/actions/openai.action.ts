@@ -100,14 +100,25 @@ export async function extractDataFromImage(base64Image: string) {
         }
 
         try {
-            let extractedData = JSON.parse(content);
+            const extractedData = JSON.parse(content);
             console.log('Parsed data:', extractedData);
 
             // Here's where you need to adjust:
             const documentDetails = extractedData.documentDetails || {};
             const items = extractedData.items || [];
 
-            const processedData = items.map((item: { product: any; quantity: { toString: () => any; }; batchCode: any; useByDate: any; tempCheck: any; productIntegrityCheck: any; weightCheck: any; comments: any; }) => ({
+            interface ExtractedItem {
+                product: string;
+                quantity: string | number;
+                batchCode: string;
+                useByDate: string;
+                tempCheck: string;
+                productIntegrityCheck: string;
+                weightCheck: string;
+                comments: string;
+            }
+
+            const processedData = items.map((item: ExtractedItem) => ({
                 date: documentDetails.receivedDate || '',
                 time: '', // You might want to handle time separately if available
                 supplier: documentDetails.supplier || '',
