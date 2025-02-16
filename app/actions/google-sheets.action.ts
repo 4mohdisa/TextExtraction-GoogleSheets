@@ -27,7 +27,7 @@ async function getAuthClient() {
         });
 
         // Get the client email from credentials
-        const client = await auth.getClient();
+        // const client = await auth.getClient();
         const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
 
         // Verify authentication
