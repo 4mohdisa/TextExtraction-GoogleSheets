@@ -21,22 +21,22 @@ async function getAuthClient() {
         const auth = new google.auth.GoogleAuth({
             credentials: {
                 client_email: process.env.GOOGLE_CLIENT_EMAIL,
-                private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n') // Replace escaped newlines
+                private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
             },
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
 
         // Get the client email from credentials
         const client = await auth.getClient();
-        const clientEmail = (client as any).email;
+        const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
 
         // Verify authentication
         await auth.getRequestHeaders();
 
         return { auth, clientEmail };
     } catch (error) {
-        console.error('Authentication error:', error);
-        throw new Error('Failed to authenticate with Google');
+        console.error('Error creating auth client:', error);
+        throw new Error('Failed to create auth client');
     }
 }
 
@@ -139,8 +139,10 @@ export async function appendSheetData(data: Array<Array<string | number>>) {
 
             log('Successfully appended data:', response.data);
             return { success: true, data: response.data };
-        } catch (accessError: any) {
-            log('Failed to access spreadsheet:', accessError.message);
+        } catch (accessError) {
+            const errorMessage = accessError instanceof Error ? accessError.message : 'Unknown error occurred';
+            log('Failed to access spreadsheet:', errorMessage);
+            
             if (accessError instanceof Error && 'code' in accessError) {
                 const googleError = accessError as { code: number };
                 if (googleError.code === 403) {
@@ -150,7 +152,7 @@ export async function appendSheetData(data: Array<Array<string | number>>) {
                     );
                 }
             }
-            throw accessError;
+            throw new Error(errorMessage);
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

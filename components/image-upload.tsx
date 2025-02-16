@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { extractDataFromImage } from "@/app/actions/openai.action"
+import { ExtractedData } from "@/types"
 
 interface ImageUploadProps {
-  onDataExtracted: (data: any) => void
+  onDataExtracted: (data: ExtractedData[]) => void
 }
 
 export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
