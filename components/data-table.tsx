@@ -73,7 +73,8 @@ export default function DataTable({ data, setData }: DataTableProps) {
         const parsedDate = parse(value, 'yyyy-MM-dd', new Date())
         const formattedDate = format(parsedDate, 'dd/MM/yyyy')
         newData[index] = { ...newData[index], [field]: formattedDate }
-      } catch (error) {
+      } catch (error: unknown) {
+        console.warn(`Failed to parse date: ${error instanceof Error ? error.message : 'Unknown error'}`)
         // If parsing fails, keep the original value
         newData[index] = { ...newData[index], [field]: value }
       }
@@ -91,7 +92,8 @@ export default function DataTable({ data, setData }: DataTableProps) {
         } else {
           newData[index] = { ...newData[index], [field]: value }
         }
-      } catch (error) {
+      } catch (error: unknown) {
+        console.warn(`Failed to parse time: ${error instanceof Error ? error.message : 'Unknown error'}`)
         newData[index] = { ...newData[index], [field]: value }
       }
     } else {

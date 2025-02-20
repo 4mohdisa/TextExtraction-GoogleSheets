@@ -1,6 +1,7 @@
 'use server';
 
 import OpenAI from 'openai';
+import { ChatCompletion, ChatCompletionMessage } from 'openai/resources';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -9,7 +10,7 @@ const openai = new OpenAI({
 
 async function fetchWithRetry(base64Image: string, attempt: number = 1, maxRetries: number = 3): Promise<any> {
     try {
-        const response = await openai.chat.completions.create({
+        const response: ChatCompletion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
                 {
@@ -103,7 +104,7 @@ export async function extractDataFromImage(base64Image: string) {
         const response = await fetchWithRetry(base64Image);
         console.log('Raw API Response:', JSON.stringify(response, null, 2));
 
-        if (!response.choices || !response.choices[0] || !response.choices[0].message) {
+        if (!response.choices?.[0]?.message) {
             console.error('Invalid response structure');
             return { success: false, data: [], error: 'Invalid API response structure' };
         }
