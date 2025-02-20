@@ -2,37 +2,107 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Trash2 } from "lucide-react"
 import { ExtractedData } from "@/types"
+import { format, parse } from 'date-fns'
 
 interface DataTableProps {
   data: ExtractedData[]
   setData: (data: ExtractedData[]) => void
 }
 
-function convertDateToISO(dateString: string): string {
-  // Assuming your date is in DD/MM/YYYY format
-  const parts = dateString.split('/');
-  if (parts.length === 3) {
-    const [day, month, year] = parts.map(part => parseInt(part, 10));
-    const date = new Date(year, month - 1, day); // Month is 0-indexed
-    if (!isNaN(date.getTime())) { // Check if date is valid
-      return date.toISOString().split('T')[0];
+function convertDateToISO(dateString: string | undefined | null): string {
+  if (!dateString) return '';
+  
+  try {
+    // First check if it's already in ISO format
+    if (dateString.includes('-')) {
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return dateString;
+      }
     }
+
+    // Try DD/MM/YYYY format
+    const parts = dateString.split('/');
+    if (parts.length === 3) {
+      const [day, month, year] = parts.map(part => parseInt(part.trim(), 10));
+      const date = new Date(year, month - 1, day); // Month is 0-indexed
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
+      }
+    }
+  } catch (error) {
+    console.error('Date conversion error:', error);
   }
+  
   return ''; // Return empty string if conversion fails
 }
 
 export default function DataTable({ data, setData }: DataTableProps) {
+  const handleAddItem = () => {
+    const newItem: ExtractedData = {
+      date: format(new Date(), 'dd/MM/yyyy'),
+      time: format(new Date(), 'hh:mm a'),
+      supplier: '',
+      product: '',
+      qty: 0,
+      orderNumber: '',
+      invoiceNumber: '',
+      batchCode: '',
+      useByDate: '',
+      tempCheck: '',
+      productIntegrityCheck: 'OK',
+      weightCheck: 'OK',
+      comments: '',
+      signature: ''
+    };
+    setData([...data, newItem]);
+  };
   const handleEdit = (index: number, field: keyof ExtractedData, value: string) => {
     const newData = [...data]
-    // Special handling for date and time
-    if (field === 'date' || field === 'time') {
-      newData[index] = { ...newData[index], [field]: value }
-    } else if (field === 'qty') {
-      newData[index] = { ...newData[index], [field]: parseInt(value) || 0 }
+    
+    if (field === 'qty') {
+      // Allow decimal numbers for quantity
+      const parsedValue = parseFloat(value) || 0
+      newData[index] = { ...newData[index], [field]: parsedValue }
+    } else if (field === 'date') {
+      try {
+        // Try to parse and format the date consistently
+        const parsedDate = parse(value, 'yyyy-MM-dd', new Date())
+        const formattedDate = format(parsedDate, 'dd/MM/yyyy')
+        newData[index] = { ...newData[index], [field]: formattedDate }
+      } catch (error) {
+        // If parsing fails, keep the original value
+        newData[index] = { ...newData[index], [field]: value }
+      }
+    } else if (field === 'time') {
+      try {
+        // Convert to 12-hour format
+        const timeParts = value.split(':')
+        if (timeParts.length >= 2) {
+          const hours = parseInt(timeParts[0])
+          const minutes = timeParts[1]
+          const period = hours >= 12 ? 'PM' : 'AM'
+          const twelveHour = hours % 12 || 12
+          const formattedTime = `${twelveHour.toString().padStart(2, '0')}:${minutes} ${period}`
+          newData[index] = { ...newData[index], [field]: formattedTime }
+        } else {
+          newData[index] = { ...newData[index], [field]: value }
+        }
+      } catch (error) {
+        newData[index] = { ...newData[index], [field]: value }
+      }
     } else {
       newData[index] = { ...newData[index], [field]: value }
     }
+    
+    setData(newData)
+  }
+
+  const handleDelete = (index: number) => {
+    const newData = data.filter((_, i) => i !== index)
     setData(newData)
   }
 
@@ -54,12 +124,12 @@ export default function DataTable({ data, setData }: DataTableProps) {
     signature: string
   }
 
-  const fieldConfig: Record<keyof ExtractedData, { display: string, type: 'text' | 'number' | 'date' | 'time' }> = {
+  const fieldConfig: Record<keyof ExtractedData, { display: string, type: 'text' | 'number' | 'date' | 'time' | 'decimal' }> = {
     date: { display: "DATE", type: 'date' },
     time: { display: "TIME", type: 'time' },
     supplier: { display: "SUPPLIER", type: 'text' },
     product: { display: "PRODUCT", type: 'text' },
-    qty: { display: "QTY", type: 'number' },
+    qty: { display: "QTY", type: 'decimal' },
     orderNumber: { display: "ORDER NUMBER", type: 'text' },
     invoiceNumber: { display: "INVOICE NUMBER", type: 'text' },
     batchCode: { display: "BATCH CODE", type: 'text' },
@@ -71,29 +141,63 @@ export default function DataTable({ data, setData }: DataTableProps) {
     signature: { display: "SIGNATURE", type: 'text' },
   }
 
-  console.log('DataTable Data:', data);
+  // Define column widths based on content type
+  const getColumnWidth = (field: string) => {
+    switch (field) {
+      case 'date':
+      case 'time':
+        return 'min-w-[150px]'; // Date and time fields
+      case 'qty':
+        return 'min-w-[100px]'; // Quantity field
+      case 'supplier':
+      case 'product':
+      case 'comments':
+        return 'min-w-[300px]'; // Wide text fields
+      case 'tempCheck':
+      case 'weightCheck':
+      case 'productIntegrityCheck':
+        return 'min-w-[200px]'; // Check fields
+      default:
+        return 'min-w-[200px]'; // All other fields
+    }
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-auto max-w-[95vw] border rounded-lg p-4">
+      <div className="flex justify-end mb-4">
+        <Button 
+          onClick={handleAddItem}
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
+          Add New Item
+        </Button>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
             {Object.entries(fieldConfig).map(([field, config]) => (
-              <TableHead key={field}>{config.display}</TableHead>
+              <TableHead key={field} className={getColumnWidth(field)}>
+                {config.display}
+              </TableHead>
             ))}
+            <TableHead className="min-w-[80px] text-center">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data.map((item, index) => (
             <TableRow key={index}>
               {Object.entries(fieldConfig).map(([field, config]) => (
-                <TableCell key={field}>
+                <TableCell key={field} className={getColumnWidth(field)}>
                   <Input
-                    type={config.type}
+                    type={config.type === 'decimal' ? 'number' : config.type}
+                    step={config.type === 'decimal' ? '0.01' : undefined}
+                    className="w-full px-2 py-1"
                     value={
-                      config.type === 'date' 
-                        ? (typeof item[field as keyof ExtractedData] === 'string'
-                            ? convertDateToISO(item[field as keyof ExtractedData] as string)
+                      config.type === 'date'
+                        ? convertDateToISO(item[field as keyof ExtractedData] as string | undefined)
+                        : config.type === 'decimal'
+                        ? (typeof item[field as keyof ExtractedData] === 'number'
+                            ? item[field as keyof ExtractedData].toString()
                             : '')
                         : (item[field as keyof ExtractedData]?.toString() || '')
                     }
@@ -101,6 +205,16 @@ export default function DataTable({ data, setData }: DataTableProps) {
                   />
                 </TableCell>
               ))}
+              <TableCell className="min-w-[80px] text-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDelete(index)}
+                  className="h-8 w-8 p-0"
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
