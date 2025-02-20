@@ -1,14 +1,14 @@
 'use server';
 
 import OpenAI from 'openai';
-import { ChatCompletion, ChatCompletionMessage } from 'openai/resources';
+import { ChatCompletion } from 'openai/resources';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-async function fetchWithRetry(base64Image: string, attempt: number = 1, maxRetries: number = 3): Promise<any> {
+async function fetchWithRetry(base64Image: string, attempt: number = 1, maxRetries: number = 3): Promise<ChatCompletion> {
     try {
         const response: ChatCompletion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
