@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
 import { ExtractedData } from "@/types"
 import { format, parse } from 'date-fns'
+import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz'
 
 interface DataTableProps {
   data: ExtractedData[]
@@ -80,14 +81,29 @@ export default function DataTable({ data, setData }: DataTableProps) {
       }
     } else if (field === 'time') {
       try {
-        // Convert to 12-hour format
+        // Parse the input time (assuming it's in Indian time)
         const timeParts = value.split(':')
         if (timeParts.length >= 2) {
           const hours = parseInt(timeParts[0])
-          const minutes = timeParts[1]
-          const period = hours >= 12 ? 'PM' : 'AM'
-          const twelveHour = hours % 12 || 12
-          const formattedTime = `${twelveHour.toString().padStart(2, '0')}:${minutes} ${period}`
+          const minutes = parseInt(timeParts[1])
+
+          // Create a date object for today with the input time in Indian timezone
+          const today = new Date()
+          const indianTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes)
+          
+          // Convert from Indian timezone to UTC
+          const utcTime = zonedTimeToUtc(indianTime, 'Asia/Kolkata')
+          
+          // Convert from UTC to Adelaide timezone
+          const adelaideTime = utcToZonedTime(utcTime, 'Australia/Adelaide')
+          
+          // Format in 12-hour format
+          const adelaideHours = adelaideTime.getHours()
+          const adelaideMinutes = adelaideTime.getMinutes()
+          const period = adelaideHours >= 12 ? 'PM' : 'AM'
+          const twelveHour = adelaideHours % 12 || 12
+          
+          const formattedTime = `${twelveHour.toString().padStart(2, '0')}:${adelaideMinutes.toString().padStart(2, '0')} ${period}`
           newData[index] = { ...newData[index], [field]: formattedTime }
         } else {
           newData[index] = { ...newData[index], [field]: value }
