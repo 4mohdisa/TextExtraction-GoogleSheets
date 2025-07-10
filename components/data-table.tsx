@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
 import { ExtractedData } from "@/types"
 import { format, parse } from 'date-fns'
-import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz'
+import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 
 interface DataTableProps {
   data: ExtractedData[]
@@ -92,10 +92,10 @@ export default function DataTable({ data, setData }: DataTableProps) {
           const indianTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes)
           
           // Convert from Indian timezone to UTC
-          const utcTime = zonedTimeToUtc(indianTime, 'Asia/Kolkata')
+          const utcTime = fromZonedTime(indianTime, 'Asia/Kolkata')
           
           // Convert from UTC to Adelaide timezone
-          const adelaideTime = utcToZonedTime(utcTime, 'Australia/Adelaide')
+          const adelaideTime = toZonedTime(utcTime, 'Australia/Adelaide')
           
           // Format in 12-hour format
           const adelaideHours = adelaideTime.getHours()
