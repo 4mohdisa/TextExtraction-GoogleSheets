@@ -1,13 +1,14 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { extractDataFromImage } from "@/app/actions/openai.action"
 import { ExtractedData } from "@/types"
+import { Upload, FileImage, X, Loader2 } from "lucide-react"
+import Image from "next/image"
 
 interface ImageUploadProps {
   onDataExtracted: (data: ExtractedData[]) => void
@@ -16,11 +17,42 @@ interface ImageUploadProps {
 export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFile(e.target.files[0])
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0]
+      
+      // Validate file type
+      if (!selectedFile.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file",
+          variant: "destructive",
+        })
+        return
+      }
+      
+      // Validate file size (max 10MB)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image smaller than 10MB",
+          variant: "destructive",
+        })
+        return
+      }
+      
+      setFile(selectedFile)
+      
+      // Create preview URL
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setPreviewUrl(event.target?.result as string)
+      }
+      reader.readAsDataURL(selectedFile)
     }
   }
 
@@ -43,7 +75,7 @@ export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
       
       toast({
         title: "Success",
-        description: "Data successfully extracted from image",
+        description: `Successfully extracted ${result.data.length} item(s) from image`,
       })
     } catch (error) {
       console.error('Error:', error)
@@ -56,23 +88,122 @@ export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
       setIsLoading(false)
     }
   }
+  
+  const handleRemoveFile = () => {
+    setFile(null)
+    setPreviewUrl(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+  
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+  
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const droppedFiles = e.dataTransfer.files
+    if (droppedFiles.length > 0) {
+      const droppedFile = droppedFiles[0]
+      if (droppedFile.type.startsWith('image/')) {
+        setFile(droppedFile)
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          setPreviewUrl(event.target?.result as string)
+        }
+        reader.readAsDataURL(droppedFile)
+      }
+    }
+  }
 
   return (
-    <div className="grid w-full max-w-sm items-center gap-1.5">
-      <Label htmlFor="picture">Picture</Label>
-      <Input
-        id="picture"
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        disabled={isLoading}
-      />
-      <Button 
-        onClick={handleUpload}
-        disabled={!file || isLoading}
-      >
-        {isLoading ? "Extracting..." : "Extract Data"}
-      </Button>
+    <div className="w-full max-w-2xl mx-auto space-y-6">
+      <div className="text-center">
+        <h2 className="text-lg font-semibold mb-2">Upload Document Image</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Upload an image of your receipt, invoice, or delivery docket to extract data automatically
+        </p>
+      </div>
+      
+      {!file ? (
+        <div 
+          className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors cursor-pointer"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <p className="text-lg font-medium mb-2">Drop your image here</p>
+          <p className="text-sm text-gray-500 mb-4">or click to browse</p>
+          <p className="text-xs text-gray-400">Supports JPG, PNG, GIF (max 10MB)</p>
+          <Input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            disabled={isLoading}
+            className="hidden"
+          />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="relative border rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-2">
+                <FileImage className="h-5 w-5 text-blue-500" />
+                <span className="text-sm font-medium truncate">{file.name}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRemoveFile}
+                disabled={isLoading}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {previewUrl && (
+              <div className="mt-3">
+                <div className="relative max-w-full max-h-48 mx-auto">
+                  <Image
+                    src={previewUrl}
+                    alt="Preview"
+                    width={400}
+                    height={300}
+                    className="max-w-full max-h-48 object-contain rounded border"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-center space-x-4">
+            <Button
+              variant="outline"
+              onClick={handleRemoveFile}
+              disabled={isLoading}
+            >
+              Choose Different Image
+            </Button>
+            <Button 
+              onClick={handleUpload}
+              disabled={!file || isLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Extracting Data...
+                </>
+              ) : (
+                "Extract Data"
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

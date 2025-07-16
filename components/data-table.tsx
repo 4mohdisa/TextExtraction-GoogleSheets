@@ -3,10 +3,11 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Trash2 } from "lucide-react"
+import { Trash2, Plus, AlertCircle, Check } from "lucide-react"
 import { ExtractedData } from "@/types"
 import { format, parse } from 'date-fns'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
+import { useState } from 'react'
 
 interface DataTableProps {
   data: ExtractedData[]
@@ -42,6 +43,45 @@ function convertDateToISO(dateString: string | undefined | null): string {
 }
 
 export default function DataTable({ data, setData }: DataTableProps) {
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  
+  const validateField = (field: keyof ExtractedData, value: string | number): string => {
+    
+    switch (field) {
+      case 'product':
+        if (!value || (typeof value === 'string' && value.trim() === '')) {
+          return 'Product name is required'
+        }
+        break
+      case 'qty':
+        if (!value || (typeof value === 'number' && value <= 0)) {
+          return 'Quantity must be greater than 0'
+        }
+        break
+      case 'date':
+        if (value && !isValidDate(value.toString())) {
+          return 'Invalid date format'
+        }
+        break
+      case 'supplier':
+        if (!value || (typeof value === 'string' && value.trim() === '')) {
+          return 'Supplier name is required'
+        }
+        break
+    }
+    return ''
+  }
+  
+  const isValidDate = (dateString: string): boolean => {
+    if (!dateString) return true // Empty is allowed
+    try {
+      const date = new Date(dateString)
+      return !isNaN(date.getTime())
+    } catch {
+      return false
+    }
+  }
+  
   const handleAddItem = () => {
     const newItem: ExtractedData = {
       date: format(new Date(), 'dd/MM/yyyy'),
@@ -116,6 +156,18 @@ export default function DataTable({ data, setData }: DataTableProps) {
       newData[index] = { ...newData[index], [field]: value }
     }
     
+    // Validate the field
+    const error = validateField(field, field === 'qty' ? parseFloat(value) : value)
+    const fieldKey = `${index}-${field}`
+    const newErrors = { ...validationErrors }
+    
+    if (error) {
+      newErrors[fieldKey] = error
+    } else {
+      delete newErrors[fieldKey]
+    }
+    
+    setValidationErrors(newErrors)
     setData(newData)
   }
 
@@ -180,16 +232,44 @@ export default function DataTable({ data, setData }: DataTableProps) {
     }
   };
 
+  // Count validation errors
+  const errorCount = Object.keys(validationErrors).length
+  const hasErrors = errorCount > 0
+  
   return (
-    <div className="space-y-4 overflow-x-auto max-w-[95vw] border rounded-lg p-4">
-      <div className="flex justify-end mb-4">
+    <div className="space-y-4">
+      {/* Status Bar */}
+      <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+        <div className="flex items-center space-x-4">
+          <div className="text-sm text-gray-600">
+            <span className="font-medium">{data.length}</span> item{data.length !== 1 ? 's' : ''}
+          </div>
+          {hasErrors && (
+            <div className="flex items-center space-x-1 text-red-600">
+              <AlertCircle className="w-4 h-4" />
+              <span className="text-sm">{errorCount} validation error{errorCount !== 1 ? 's' : ''}</span>
+            </div>
+          )}
+          {!hasErrors && data.length > 0 && (
+            <div className="flex items-center space-x-1 text-green-600">
+              <Check className="w-4 h-4" />
+              <span className="text-sm">All data valid</span>
+            </div>
+          )}
+        </div>
         <Button 
           onClick={handleAddItem}
-          className="bg-green-600 hover:bg-green-700 text-white"
+          variant="outline"
+          size="sm"
+          className="flex items-center space-x-2"
         >
-          Add New Item
+          <Plus className="w-4 h-4" />
+          <span>Add Item</span>
         </Button>
       </div>
+      
+      {/* Table Container */}
+      <div className="overflow-x-auto border rounded-lg">
       <Table>
         <TableHeader>
           <TableRow>
@@ -204,39 +284,61 @@ export default function DataTable({ data, setData }: DataTableProps) {
         <TableBody>
           {data.map((item, index) => (
             <TableRow key={index}>
-              {Object.entries(fieldConfig).map(([field, config]) => (
-                <TableCell key={field} className={getColumnWidth(field)}>
-                  <Input
-                    type={config.type === 'decimal' ? 'number' : config.type}
-                    step={config.type === 'decimal' ? '0.01' : undefined}
-                    className="w-full px-2 py-1"
-                    value={
-                      config.type === 'date'
-                        ? convertDateToISO(item[field as keyof ExtractedData] as string | undefined)
-                        : config.type === 'decimal'
-                        ? (typeof item[field as keyof ExtractedData] === 'number'
-                            ? item[field as keyof ExtractedData].toString()
-                            : '')
-                        : (item[field as keyof ExtractedData]?.toString() || '')
-                    }
-                    onChange={(e) => handleEdit(index, field as keyof ExtractedData, e.target.value)}
-                  />
-                </TableCell>
-              ))}
+              {Object.entries(fieldConfig).map(([field, config]) => {
+                const fieldKey = `${index}-${field}`
+                const hasError = validationErrors[fieldKey]
+                
+                return (
+                  <TableCell key={field} className={getColumnWidth(field)}>
+                    <div className="relative">
+                      <Input
+                        type={config.type === 'decimal' ? 'number' : config.type}
+                        step={config.type === 'decimal' ? '0.01' : undefined}
+                        className={`w-full px-2 py-1 ${hasError ? 'border-red-500 bg-red-50' : ''}`}
+                        value={
+                          config.type === 'date'
+                            ? convertDateToISO(item[field as keyof ExtractedData] as string | undefined)
+                            : config.type === 'decimal'
+                            ? (typeof item[field as keyof ExtractedData] === 'number'
+                                ? item[field as keyof ExtractedData].toString()
+                                : '')
+                            : (item[field as keyof ExtractedData]?.toString() || '')
+                        }
+                        onChange={(e) => handleEdit(index, field as keyof ExtractedData, e.target.value)}
+                        placeholder={config.type === 'decimal' ? '0.00' : `Enter ${config.display.toLowerCase()}`}
+                      />
+                      {hasError && (
+                        <div className="absolute -bottom-5 left-0 text-xs text-red-600">
+                          {hasError}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                )
+              })}
               <TableCell className="min-w-[80px] text-center">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => handleDelete(index)}
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                  title="Delete item"
                 >
-                  <Trash2 className="h-4 w-4 text-red-500" />
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      </div>
+      
+      {/* Help Text */}
+      <div className="text-xs text-gray-500 space-y-1">
+        <p>• Click in any cell to edit the extracted data</p>
+        <p>• Red highlighted fields contain validation errors that need to be fixed</p>
+        <p>• Use the &quot;Add Item&quot; button to manually add additional items</p>
+      </div>
     </div>
   )
 }
