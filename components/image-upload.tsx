@@ -18,6 +18,8 @@ export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [status, setStatus] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
@@ -60,17 +62,31 @@ export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
     if (!file) return
 
     setIsLoading(true)
+    setProgress(0)
+    setStatus('Preparing image...')
+    
     try {
-      // Convert file to base64
+      // Convert file to base64 with progress
+      setProgress(10)
+      setStatus('Processing image...')
       const buffer = await file.arrayBuffer()
       const base64Image = Buffer.from(buffer).toString('base64')
-
+      
+      setProgress(30)
+      setStatus('Analyzing document with AI...')
+      
       const result = await extractDataFromImage(base64Image)
+      
+      setProgress(90)
+      setStatus('Finalizing extraction...')
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to extract data')
       }
 
+      setProgress(100)
+      setStatus('Complete!')
+      
       onDataExtracted(result.data);
       
       toast({
@@ -79,13 +95,33 @@ export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
       })
     } catch (error) {
       console.error('Error:', error)
+      setStatus('Error occurred')
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to extract data'
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          errorMessage = 'Request timed out. Please try again with a smaller image or check your internet connection.'
+        } else if (error.message.includes('504')) {
+          errorMessage = 'Server is temporarily busy. Please wait a moment and try again.'
+        } else if (error.message.includes('429')) {
+          errorMessage = 'Too many requests. Please wait a moment before trying again.'
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to extract data",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setTimeout(() => {
+        setIsLoading(false)
+        setProgress(0)
+        setStatus('')
+      }, 1000)
     }
   }
   
@@ -195,12 +231,25 @@ export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Extracting Data...
+                  {status || 'Processing...'}
                 </>
               ) : (
                 "Extract Data"
               )}
             </Button>
+            
+            {/* Progress Bar */}
+            {isLoading && (
+              <div className="mt-4 space-y-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p className="text-sm text-gray-600 text-center">{status}</p>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -3,14 +3,31 @@
 import OpenAI from 'openai';
 import { ChatCompletion } from 'openai/resources';
 
-// Initialize OpenAI client
+// Type for OpenAI API errors
+interface OpenAIError {
+    name?: string;
+    message?: string;
+    status?: number;
+    code?: string;
+}
+
+// Initialize OpenAI client with timeout and retry configuration
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
+    timeout: 60000, // 60 seconds timeout
+    maxRetries: 3,
 });
 
 async function fetchWithRetry(base64Image: string, attempt: number = 1, maxRetries: number = 3): Promise<ChatCompletion> {
     try {
-        const response: ChatCompletion = await openai.chat.completions.create({
+        console.log(`Attempt ${attempt} of ${maxRetries} for OpenAI API call`);
+        
+        // Add timeout wrapper for the request
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout - please try again')), 90000); // 90 seconds
+        });
+        
+        const requestPromise = openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
                 {
@@ -116,19 +133,81 @@ Analyze the image carefully and extract all available information with maximum a
             temperature: 0.05, // Very low for maximum precision
             response_format: { type: "json_object" }
         });
+        
+        const response: ChatCompletion = await Promise.race([requestPromise, timeoutPromise]);
+        console.log(`OpenAI API call successful on attempt ${attempt}`);
         return response;
-    } catch (error) {
-        if (attempt >= maxRetries) throw error;
-        console.warn(`Retry attempt ${attempt} failed, retrying...`, error);
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+    } catch (error: unknown) {
+        console.error(`Attempt ${attempt} failed:`, error);
+        
+        // Type guard to safely access error properties
+        const errorObj = error as OpenAIError;
+        const errorName = errorObj?.name || '';
+        const errorMessage = errorObj?.message || '';
+        const errorStatus = errorObj?.status || 0;
+        
+        // Handle specific error types
+        if (errorName === 'TimeoutError' || errorMessage.includes('timeout')) {
+            console.warn('Request timed out, retrying...');
+        } else if (errorStatus === 504 || errorMessage.includes('504')) {
+            console.warn('Server gateway timeout, retrying...');
+        } else if (errorStatus === 429) {
+            console.warn('Rate limit exceeded, waiting longer before retry...');
+            await new Promise(resolve => setTimeout(resolve, 5000 * attempt)); // Longer wait for rate limits
+        } else if (errorStatus >= 500) {
+            console.warn('Server error, retrying...');
+        }
+        
+        if (attempt >= maxRetries) {
+            // Provide user-friendly error messages
+            if (errorName === 'TimeoutError' || errorMessage.includes('timeout')) {
+                throw new Error('Request timed out. Please check your internet connection and try again.');
+            } else if (errorStatus === 504) {
+                throw new Error('Server is temporarily unavailable. Please try again in a moment.');
+            } else if (errorStatus === 429) {
+                throw new Error('Too many requests. Please wait a moment before trying again.');
+            } else if (errorStatus === 401) {
+                throw new Error('Authentication failed. Please check your API configuration.');
+            } else if (errorStatus >= 500) {
+                throw new Error('Server error occurred. Please try again later.');
+            }
+            throw error;
+        }
+        
+        // Exponential backoff with jitter
+        const baseDelay = 1000 * Math.pow(2, attempt - 1);
+        const jitter = Math.random() * 1000;
+        const delay = Math.min(baseDelay + jitter, 10000); // Max 10 seconds
+        
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
         return fetchWithRetry(base64Image, attempt + 1, maxRetries);
     }
 }
 
 export async function extractDataFromImage(base64Image: string) {
     try {
+        // Validate input
+        if (!base64Image || base64Image.length === 0) {
+            return { 
+                success: false, 
+                data: [], 
+                error: 'No image data provided. Please upload an image.' 
+            };
+        }
+        
+        // Check image size (approximate)
+        if (base64Image.length > 20 * 1024 * 1024) { // ~20MB limit
+            return { 
+                success: false, 
+                data: [], 
+                error: 'Image file is too large. Please use a smaller image (under 10MB).' 
+            };
+        }
+        
+        console.log('Starting data extraction from image...');
         const response = await fetchWithRetry(base64Image);
-        console.log('Raw API Response:', JSON.stringify(response, null, 2));
+        console.log('OpenAI API response received successfully');
 
         if (!response.choices?.[0]?.message) {
             console.error('Invalid response structure');

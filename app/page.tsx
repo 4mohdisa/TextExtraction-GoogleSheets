@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import ImageUpload from "@/components/image-upload"
 import DataTable from "@/components/data-table"
 import { Button } from "@/components/ui/button"
@@ -8,11 +8,17 @@ import { useToast } from "@/hooks/use-toast"
 import { appendSheetData } from "@/app/actions/google-sheets.action"
 import { ExtractedData } from "@/types"
 import { CheckCircle, Upload, Table, ArrowLeft, Loader2 } from "lucide-react"
+import { suppressBrowserExtensionErrors, handleApplicationError } from "@/lib/error-handler"
 
 export default function Home() {
   const [extractedData, setExtractedData] = useState<ExtractedData[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+  
+  // Initialize error suppression for browser extensions
+  useEffect(() => {
+    suppressBrowserExtensionErrors();
+  }, []);
 
   const handleDataExtracted = (data: ExtractedData[]) => {
     console.log('Extracted data:', JSON.stringify(data, null, 2));
@@ -66,9 +72,14 @@ export default function Home() {
   
     } catch (error) {
       console.error('Error:', error);
+      const errorMessage = handleApplicationError(
+        error instanceof Error ? error : new Error('Failed to submit data'),
+        'Google Sheets submission'
+      );
+      
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit data",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
