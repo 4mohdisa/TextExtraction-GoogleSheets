@@ -14,92 +14,56 @@ interface OpenAIError {
 // Initialize OpenAI client with timeout and retry configuration
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
-    timeout: 60000, // 60 seconds timeout
-    maxRetries: 3,
+    timeout: 45000, // 45 seconds timeout for Vercel compatibility
+    maxRetries: 2, // Reduced retries for faster failure
 });
 
-async function fetchWithRetry(base64Image: string, attempt: number = 1, maxRetries: number = 3): Promise<ChatCompletion> {
+async function fetchWithRetry(base64Image: string, attempt: number = 1, maxRetries: number = 2): Promise<ChatCompletion> {
     try {
         console.log(`Attempt ${attempt} of ${maxRetries} for OpenAI API call`);
         
-        // Add timeout wrapper for the request
+        // Add timeout wrapper for the request (Vercel has 60s limit)
         const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error('Request timeout - please try again')), 90000); // 90 seconds
+            setTimeout(() => reject(new Error('Request timeout - please try again')), 50000); // 50 seconds
         });
         
         const requestPromise = openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gpt-4o-mini", // Using faster mini model
             messages: [
                 {
                     role: "user",
                     content: [
                         {
                             type: "text",
-                            text: `You are an expert document data extraction system. Analyze this document image (receipt, invoice, or delivery docket) and extract structured data with high accuracy.
+                            text: `Extract data from this document image (receipt/invoice/docket) into JSON format.
 
-**DOCUMENT TYPES TO HANDLE:**
-1. **Supermarket Receipts** (like Salam Supermarket, Woolworths, Coles, etc.)
-2. **Invoices** (supplier invoices, service invoices)
-3. **Delivery Dockets** (delivery notes, packing slips)
-4. **Purchase Orders** (formal purchase documentation)
+**EXTRACT:**
+- **Company**: Business name
+- **Document Number**: Transaction/Invoice ID
+- **Date**: Document date (DD/MM/YYYY format)
+- **Items**: All products with quantities
+- **Signature**: Person who signed/received
 
-**EXTRACTION RULES:**
+**RULES:**
+- Use handwritten corrections over printed text
+- Ignore crossed-out items
+- Convert quantities to decimal numbers
+- Use "OK" for integrity/weight checks if not specified
 
-**Header/Document Information:**
-- **Supplier/Company**: Business name at top of document
-- **Document Type**: Identify if it's a receipt, invoice, docket, or purchase order
-- **Document Number**: Transaction ID, invoice number, docket number, or order number
-- **Date**: Document date in DD/MM/YYYY format (convert from any format)
-- **Time**: Time if available (convert to HH:MM format)
-
-**Recipient/Customer Information:**
-- **Received By**: Person who received goods/made purchase
-- **Customer Name**: If different from "Received By"
-- **Signature**: Person who signed for delivery/purchase
-
-**Items/Products:**
-- **Product Description**: Full product name/description
-- **Quantity**: Numeric quantity (weight in kg, pieces, units)
-- **Unit Price**: Price per unit if available
-- **Total Price**: Total cost for the item
-- **Batch Code**: Product batch/lot number
-- **Use By Date**: Expiry or best before date
-- **Temperature Check**: Cold chain compliance (for perishables)
-- **Product Integrity**: Condition of product (OK/Damaged)
-- **Weight Check**: Weight verification (OK/Variance)
-- **Comments**: Any additional notes or remarks
-
-**PROCESSING INSTRUCTIONS:**
-1. **Handwritten Priority**: If text is crossed out and rewritten, use the handwritten correction
-2. **Struck-out Items**: Ignore completely crossed-out items
-3. **Multi-line Descriptions**: Combine related text into single product descriptions
-4. **Decimal Precision**: Maintain decimal precision for quantities and prices
-5. **Date Standardization**: Convert all dates to DD/MM/YYYY format
-6. **Missing Data**: Use empty strings for missing information
-7. **Default Values**: Use "OK" for integrity/weight checks unless issues noted
-
-**OUTPUT FORMAT:**
-Return JSON in this exact structure:
-
+**JSON FORMAT:**
 {
   "documentDetails": {
-    "documentType": "Receipt|Invoice|Docket|Purchase Order",
     "supplier": "Company Name",
-    "documentNumber": "Number/ID",
+    "documentNumber": "Number",
     "date": "DD/MM/YYYY",
     "time": "HH:MM",
     "receivedBy": "Person Name",
-    "customerName": "Customer Name",
-    "signature": "Signature Name",
-    "totalAmount": "Total if available"
+    "signature": "Signature Name"
   },
   "items": [
     {
-      "product": "Full Product Description",
+      "product": "Product Name",
       "quantity": 0.0,
-      "unit": "kg|pieces|units|etc",
-      "unitPrice": 0.0,
-      "totalPrice": 0.0,
       "batchCode": "",
       "useByDate": "",
       "tempCheck": "",
@@ -110,15 +74,7 @@ Return JSON in this exact structure:
   ]
 }
 
-**ACCURACY REQUIREMENTS:**
-- Extract ALL visible items, even if partially obscured
-- Maintain exact spelling of product names
-- Preserve numerical precision
-- Handle various date formats correctly
-- Detect and process handwritten corrections
-- Identify document context (retail vs wholesale vs delivery)
-
-Analyze the image carefully and extract all available information with maximum accuracy.`,
+Extract ALL items and maintain numerical precision.`,
                         },
                         {
                             type: "image_url",
@@ -129,8 +85,8 @@ Analyze the image carefully and extract all available information with maximum a
                     ]
                 }
             ],
-            max_tokens: 4000, // Increased for comprehensive extraction
-            temperature: 0.05, // Very low for maximum precision
+            max_tokens: 3000, // Reduced for faster processing
+            temperature: 0.1, // Slightly higher for faster processing
             response_format: { type: "json_object" }
         });
         
@@ -161,15 +117,15 @@ Analyze the image carefully and extract all available information with maximum a
         if (attempt >= maxRetries) {
             // Provide user-friendly error messages
             if (errorName === 'TimeoutError' || errorMessage.includes('timeout')) {
-                throw new Error('Request timed out. Please check your internet connection and try again.');
+                throw new Error('The image processing is taking too long. Please try with a smaller or clearer image.');
             } else if (errorStatus === 504) {
-                throw new Error('Server is temporarily unavailable. Please try again in a moment.');
+                throw new Error('Server timeout occurred. The image may be too large or complex. Please try with a smaller image.');
             } else if (errorStatus === 429) {
-                throw new Error('Too many requests. Please wait a moment before trying again.');
+                throw new Error('Too many requests. Please wait 30 seconds before trying again.');
             } else if (errorStatus === 401) {
-                throw new Error('Authentication failed. Please check your API configuration.');
+                throw new Error('API authentication failed. Please check your OpenAI API key configuration.');
             } else if (errorStatus >= 500) {
-                throw new Error('Server error occurred. Please try again later.');
+                throw new Error('OpenAI service is temporarily unavailable. Please try again in a few minutes.');
             }
             throw error;
         }
@@ -196,12 +152,12 @@ export async function extractDataFromImage(base64Image: string) {
             };
         }
         
-        // Check image size (approximate)
-        if (base64Image.length > 20 * 1024 * 1024) { // ~20MB limit
+        // Check image size (approximate) - Vercel has limits
+        if (base64Image.length > 10 * 1024 * 1024) { // ~10MB limit for Vercel
             return { 
                 success: false, 
                 data: [], 
-                error: 'Image file is too large. Please use a smaller image (under 10MB).' 
+                error: 'Image file is too large. Please use a smaller image (under 5MB) for faster processing.' 
             };
         }
         

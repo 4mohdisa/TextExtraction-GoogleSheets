@@ -37,11 +37,11 @@ export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
         return
       }
       
-      // Validate file size (max 10MB)
-      if (selectedFile.size > 10 * 1024 * 1024) {
+      // Validate file size (max 5MB for better performance)
+      if (selectedFile.size > 5 * 1024 * 1024) {
         toast({
           title: "File too large",
-          description: "Please select an image smaller than 10MB",
+          description: "Please select an image smaller than 5MB for faster processing",
           variant: "destructive",
         })
         return
@@ -100,12 +100,14 @@ export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
       // Provide user-friendly error messages
       let errorMessage = 'Failed to extract data'
       if (error instanceof Error) {
-        if (error.message.includes('timeout')) {
-          errorMessage = 'Request timed out. Please try again with a smaller image or check your internet connection.'
-        } else if (error.message.includes('504')) {
-          errorMessage = 'Server is temporarily busy. Please wait a moment and try again.'
+        if (error.message.includes('timeout') || error.message.includes('taking too long')) {
+          errorMessage = 'Processing took too long. Please try with a smaller or clearer image.'
+        } else if (error.message.includes('504') || error.message.includes('Gateway Timeout')) {
+          errorMessage = 'Server timeout. The image may be too complex. Please try with a simpler image.'
         } else if (error.message.includes('429')) {
-          errorMessage = 'Too many requests. Please wait a moment before trying again.'
+          errorMessage = 'Too many requests. Please wait 30 seconds before trying again.'
+        } else if (error.message.includes('too large')) {
+          errorMessage = 'Image is too large. Please use a smaller image (under 5MB).'
         } else {
           errorMessage = error.message
         }
