@@ -333,5 +333,178 @@
       ],
       "corrections": []
     }
+  },
+  "specialty foods pty ltd-invoice": {
+    "id": "specialty foods pty ltd-invoice",
+    "supplier": "Specialty Foods Pty Ltd",
+    "documentType": "invoice",
+    "extractionTemplate": {
+      "headerLocation": "top",
+      "dateFormat": "DD/MM/YYYY",
+      "timeFormat": "HH:MM",
+      "itemsSection": "center",
+      "quantityFormat": "integer",
+      "priceFormat": "none",
+      "commonFields": {
+        "supplier": "Specialty Foods Pty Ltd",
+        "documentNumber": "00374875",
+        "signature": "Bawon"
+      },
+      "itemFields": {
+        "product": "product name or description",
+        "quantity": "numeric value with optional unit",
+        "batchCode": "alphanumeric code",
+        "useByDate": "date in various formats"
+      }
+    },
+    "extractionHints": {
+      "datePatterns": [
+        "DD/MM/YYYY"
+      ],
+      "quantityPatterns": [],
+      "itemSeparators": [
+        "new line",
+        "dashed line",
+        "blank space"
+      ],
+      "signatureLocation": "bottom right",
+      "specialInstructions": [
+        "Look for handwritten corrections",
+        "Ignore crossed-out items",
+        "Check for multiple pages",
+        "Verify decimal precision for quantities"
+      ]
+    },
+    "accuracy": {
+      "successRate": 100,
+      "commonErrors": [],
+      "lastUpdated": "2025-07-17T15:01:36.574Z",
+      "extractionCount": 2
+    },
+    "examples": {
+      "goodExtractions": [
+        {
+          "documentDetails": {
+            "supplier": "Specialty Foods Pty Ltd",
+            "documentNumber": "00374875",
+            "date": "11/07/2025",
+            "time": "09:51",
+            "receivedBy": "Bawon",
+            "signature": "Bawon"
+          },
+          "items": [
+            {
+              "date": "11/07/2025",
+              "time": "09:51",
+              "supplier": "Specialty Foods Pty Ltd",
+              "product": "BEEF DICED EXTRA TRIM 20 X 20",
+              "qty": 20,
+              "orderNumber": "00374875",
+              "invoiceNumber": "00374875",
+              "batchCode": "B 8-12-23",
+              "useByDate": "",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Bawon"
+            },
+            {
+              "date": "11/07/2025",
+              "time": "09:51",
+              "supplier": "Specialty Foods Pty Ltd",
+              "product": "HOGGET DICED LAMB LEGS CATERING EXTRA TRIM 20 X 20",
+              "qty": 20,
+              "orderNumber": "00374875",
+              "invoiceNumber": "00374875",
+              "batchCode": "B 8-12-23",
+              "useByDate": "",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Bawon"
+            },
+            {
+              "date": "11/07/2025",
+              "time": "09:51",
+              "supplier": "Specialty Foods Pty Ltd",
+              "product": "LAMB SHANKS TIPPED & STAND-UP (3 X 10PCES PER BAG 300-325GM EACH VAC PACKED)",
+              "qty": 3,
+              "orderNumber": "00374875",
+              "invoiceNumber": "00374875",
+              "batchCode": "B.B. 15-02-25",
+              "useByDate": "",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Bawon"
+            }
+          ]
+        },
+        {
+          "documentDetails": {
+            "supplier": "Specialty Foods Pty Ltd",
+            "documentNumber": "00374875",
+            "date": "11/07/2025",
+            "time": "09:51",
+            "receivedBy": "Bawon",
+            "signature": "Bawon"
+          },
+          "items": [
+            {
+              "date": "11/07/2025",
+              "time": "09:51",
+              "supplier": "Specialty Foods Pty Ltd",
+              "product": "BEEF DICED EXTRA TRIM 20 X 20",
+              "qty": 60,
+              "orderNumber": "00374875",
+              "invoiceNumber": "00374875",
+              "batchCode": "B 8-12-23",
+              "useByDate": "",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Bawon"
+            },
+            {
+              "date": "11/07/2025",
+              "time": "09:51",
+              "supplier": "Specialty Foods Pty Ltd",
+              "product": "HOGGET DICED LAMB LEGS CATERING EXTRA TRIM 20 X 20",
+              "qty": 60,
+              "orderNumber": "00374875",
+              "invoiceNumber": "00374875",
+              "batchCode": "B 8-12-23",
+              "useByDate": "",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Bawon"
+            },
+            {
+              "date": "11/07/2025",
+              "time": "09:51",
+              "supplier": "Specialty Foods Pty Ltd",
+              "product": "LAMB SHANKS TRIMMED & STAND-UP (3 X 10PCES PER BAG 300-325GM EACH VAC PACKED)",
+              "qty": 6,
+              "orderNumber": "00374875",
+              "invoiceNumber": "00374875",
+              "batchCode": "B B 15-02-25",
+              "useByDate": "",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Bawon"
+            }
+          ]
+        }
+      ],
+      "corrections": []
+    }
   }
 }
