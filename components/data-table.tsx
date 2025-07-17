@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Trash2, Plus, AlertCircle, Check, Copy } from "lucide-react"
 import { ExtractedData } from "@/types"
 import { format, parse } from 'date-fns'
-import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import { useState, useRef } from 'react'
 
 interface DataTableProps {
@@ -40,6 +39,36 @@ function convertDateToISO(dateString: string | undefined | null): string {
     }
   } catch (error) {
     console.error('Date conversion error:', error);
+  }
+  
+  return ''; // Return empty string if conversion fails
+}
+
+function convertTimeTo24Hour(timeString: string | undefined | null): string {
+  if (!timeString) return '';
+  
+  try {
+    // Check if it's already in 24-hour format (HH:MM)
+    if (timeString.match(/^\d{2}:\d{2}$/)) {
+      return timeString;
+    }
+    
+    // Handle 12-hour format with AM/PM
+    const timeMatch = timeString.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (timeMatch) {
+      let [, hours, minutes, period] = timeMatch;
+      let hour24 = parseInt(hours, 10);
+      
+      if (period.toUpperCase() === 'PM' && hour24 !== 12) {
+        hour24 += 12;
+      } else if (period.toUpperCase() === 'AM' && hour24 === 12) {
+        hour24 = 0;
+      }
+      
+      return `${hour24.toString().padStart(2, '0')}:${minutes}`;
+    }
+  } catch (error) {
+    console.error('Time conversion error:', error);
   }
   
   return ''; // Return empty string if conversion fails
@@ -131,31 +160,18 @@ export default function DataTable({ data, setData }: DataTableProps) {
       }
     } else if (field === 'time') {
       try {
-        // Parse the input time (assuming it's in Indian time)
-        const timeParts = value.split(':')
-        if (timeParts.length >= 2) {
-          const hours = parseInt(timeParts[0])
-          const minutes = parseInt(timeParts[1])
-
-          // Create a date object for today with the input time in Indian timezone
-          const today = new Date()
-          const indianTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes)
+        // Handle HTML time input (HH:MM format from time picker)
+        if (value.includes(':') && value.match(/^\d{2}:\d{2}$/)) {
+          const [hours, minutes] = value.split(':').map(num => parseInt(num, 10))
           
-          // Convert from Indian timezone to UTC
-          const utcTime = fromZonedTime(indianTime, 'Asia/Kolkata')
+          // Convert to 12-hour format with AM/PM
+          const period = hours >= 12 ? 'PM' : 'AM'
+          const twelveHour = hours % 12 || 12
+          const formattedTime = `${twelveHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`
           
-          // Convert from UTC to Adelaide timezone
-          const adelaideTime = toZonedTime(utcTime, 'Australia/Adelaide')
-          
-          // Format in 12-hour format
-          const adelaideHours = adelaideTime.getHours()
-          const adelaideMinutes = adelaideTime.getMinutes()
-          const period = adelaideHours >= 12 ? 'PM' : 'AM'
-          const twelveHour = adelaideHours % 12 || 12
-          
-          const formattedTime = `${twelveHour.toString().padStart(2, '0')}:${adelaideMinutes.toString().padStart(2, '0')} ${period}`
           newData[index] = { ...newData[index], [field]: formattedTime }
         } else {
+          // Handle manual text input or existing formatted time
           newData[index] = { ...newData[index], [field]: value }
         }
       } catch (error: unknown) {
@@ -386,6 +402,8 @@ export default function DataTable({ data, setData }: DataTableProps) {
                         value={
                           config.type === 'date'
                             ? convertDateToISO(item[field as keyof ExtractedData] as string | undefined)
+                            : config.type === 'time'
+                            ? convertTimeTo24Hour(item[field as keyof ExtractedData] as string | undefined)
                             : config.type === 'decimal'
                             ? (typeof item[field as keyof ExtractedData] === 'number'
                                 ? item[field as keyof ExtractedData].toString()
