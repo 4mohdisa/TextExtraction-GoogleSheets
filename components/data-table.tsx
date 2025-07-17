@@ -7,7 +7,7 @@ import { Trash2, Plus, AlertCircle, Check, Copy } from "lucide-react"
 import { ExtractedData } from "@/types"
 import { format, parse } from 'date-fns'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 
 interface DataTableProps {
   data: ExtractedData[]
@@ -241,6 +241,83 @@ export default function DataTable({ data, setData }: DataTableProps) {
         return 'min-w-[200px]'; // All other fields
     }
   };
+
+  // Keyboard shortcuts and navigation functions
+  const setInputRef = (rowIndex: number, field: keyof ExtractedData, el: HTMLInputElement | null) => {
+    if (el) {
+      inputRefs.current[`${rowIndex}-${field}`] = el
+    }
+  }
+
+  const handleFocus = (rowIndex: number, field: keyof ExtractedData) => {
+    setFocusedField({ row: rowIndex, field })
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent, rowIndex: number, field: keyof ExtractedData) => {
+    // Copy field to below (Ctrl+D)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd' && !e.shiftKey) {
+      e.preventDefault()
+      copyToBelow(rowIndex, field)
+    }
+    // Copy entire row to below (Ctrl+Shift+D)
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
+      e.preventDefault()
+      copyEntireRowToBelow(rowIndex)
+    }
+    // Move to next row same field (Enter)
+    else if (e.key === 'Enter') {
+      e.preventDefault()
+      moveToNextRow(rowIndex, field)
+    }
+  }
+
+  const copyToBelow = (rowIndex: number, field: keyof ExtractedData) => {
+    if (rowIndex >= data.length - 1) return
+    
+    const currentValue = data[rowIndex][field]
+    const newData = [...data]
+    newData[rowIndex + 1] = { ...newData[rowIndex + 1], [field]: currentValue }
+    setData(newData)
+    
+    // Focus the field below
+    setTimeout(() => {
+      const nextInput = inputRefs.current[`${rowIndex + 1}-${field}`]
+      if (nextInput) {
+        nextInput.focus()
+        nextInput.select()
+      }
+    }, 50)
+  }
+
+  const copyEntireRowToBelow = (rowIndex: number) => {
+    if (rowIndex >= data.length - 1) return
+    
+    const currentRow = data[rowIndex]
+    const newData = [...data]
+    newData[rowIndex + 1] = { ...currentRow }
+    setData(newData)
+    
+    // Focus the same field in the next row
+    if (focusedField) {
+      setTimeout(() => {
+        const nextInput = inputRefs.current[`${rowIndex + 1}-${focusedField.field}`]
+        if (nextInput) {
+          nextInput.focus()
+          nextInput.select()
+        }
+      }, 50)
+    }
+  }
+
+  const moveToNextRow = (rowIndex: number, field: keyof ExtractedData) => {
+    if (rowIndex >= data.length - 1) return
+    
+    const nextInput = inputRefs.current[`${rowIndex + 1}-${field}`]
+    if (nextInput) {
+      nextInput.focus()
+      nextInput.select()
+    }
+  }
 
   // Count validation errors
   const errorCount = Object.keys(validationErrors).length
