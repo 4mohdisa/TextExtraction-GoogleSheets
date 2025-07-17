@@ -18,25 +18,45 @@ function log(...args: unknown[]) {
 // Create a reusable auth client using environment variables
 async function getAuthClient() {
     try {
+        // Check if required environment variables are set
+        const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+        const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+        
+        if (!clientEmail || !privateKey) {
+            throw new Error(
+                'Missing Google Sheets credentials. Please set GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY in your .env.local file.'
+            );
+        }
+        
+        log('Using client email:', clientEmail);
+        log('Private key length:', privateKey.length);
+        
         const auth = new google.auth.GoogleAuth({
             credentials: {
-                client_email: process.env.GOOGLE_CLIENT_EMAIL,
-                private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+                client_email: clientEmail,
+                private_key: privateKey.replace(/\\n/g, '\n')
             },
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
 
-        // Get the client email from credentials
-        // const client = await auth.getClient();
-        const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-
         // Verify authentication
         await auth.getRequestHeaders();
+        log('Authentication successful');
 
         return { auth, clientEmail };
     } catch (error) {
         console.error('Error creating auth client:', error);
-        throw new Error('Failed to create auth client');
+        
+        if (error instanceof Error) {
+            if (error.message.includes('Missing Google Sheets credentials')) {
+                throw error; // Re-throw our custom error
+            }
+            if (error.message.includes('invalid_grant')) {
+                throw new Error('Invalid Google service account credentials. Please check your GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY.');
+            }
+        }
+        
+        throw new Error('Failed to create auth client. Please check your Google Sheets configuration.');
     }
 }
 

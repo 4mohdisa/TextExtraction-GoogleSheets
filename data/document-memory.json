@@ -1,1 +1,337 @@
-{}
+{
+  "beyond india-invoice": {
+    "id": "beyond india-invoice",
+    "supplier": "BEYOND INDIA",
+    "documentType": "invoice",
+    "extractionTemplate": {
+      "headerLocation": "top",
+      "dateFormat": "DD/MM/YYYY",
+      "timeFormat": "HH:MM",
+      "itemsSection": "center",
+      "quantityFormat": "integer",
+      "priceFormat": "none",
+      "commonFields": {
+        "supplier": "Poultry Boss",
+        "documentNumber": "E154668",
+        "signature": ""
+      },
+      "itemFields": {
+        "product": "product name or description",
+        "quantity": "numeric value with optional unit",
+        "batchCode": "alphanumeric code",
+        "useByDate": "date in various formats"
+      }
+    },
+    "extractionHints": {
+      "datePatterns": [
+        "DD/MM/YYYY"
+      ],
+      "quantityPatterns": [],
+      "itemSeparators": [
+        "new line",
+        "dashed line",
+        "blank space"
+      ],
+      "signatureLocation": "bottom right",
+      "specialInstructions": [
+        "Look for handwritten corrections",
+        "Ignore crossed-out items",
+        "Check for multiple pages",
+        "Verify decimal precision for quantities"
+      ]
+    },
+    "accuracy": {
+      "successRate": 100,
+      "commonErrors": [],
+      "lastUpdated": "2025-07-17T14:40:48.699Z",
+      "extractionCount": 2
+    },
+    "examples": {
+      "goodExtractions": [
+        {
+          "documentDetails": {
+            "supplier": "Poultry Boss",
+            "documentNumber": "E154668",
+            "date": "10/08/2025",
+            "time": "09:40",
+            "receivedBy": "Pawan",
+            "signature": ""
+          },
+          "items": [
+            {
+              "date": "10/08/2025",
+              "time": "09:40",
+              "supplier": "Poultry Boss",
+              "product": "FRESH #12 CHICKEN",
+              "qty": 8,
+              "orderNumber": "E154668",
+              "invoiceNumber": "E154668",
+              "batchCode": "",
+              "useByDate": "12/07/2025",
+              "tempCheck": "Temp: 1.0°C",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Pawan"
+            },
+            {
+              "date": "10/08/2025",
+              "time": "09:40",
+              "supplier": "Poultry Boss",
+              "product": "LEG/MARYLAND FILLET QUARTER",
+              "qty": 210,
+              "orderNumber": "E154668",
+              "invoiceNumber": "E154668",
+              "batchCode": "",
+              "useByDate": "",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Pawan"
+            },
+            {
+              "date": "10/08/2025",
+              "time": "09:40",
+              "supplier": "Poultry Boss",
+              "product": "LEG/MARYLAND FILLET (SOFF)",
+              "qty": 1,
+              "orderNumber": "E154668",
+              "invoiceNumber": "E154668",
+              "batchCode": "",
+              "useByDate": "12/12/2025",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Pawan"
+            }
+          ]
+        },
+        {
+          "documentDetails": {
+            "supplier": "BEYOND INDIA",
+            "documentNumber": "E154668",
+            "date": "10/08/2025",
+            "time": "09:40",
+            "receivedBy": "Pawan",
+            "signature": ""
+          },
+          "items": [
+            {
+              "date": "10/08/2025",
+              "time": "09:40",
+              "supplier": "BEYOND INDIA",
+              "product": "FRESH #12 CHICKEN",
+              "qty": 2,
+              "orderNumber": "E154668",
+              "invoiceNumber": "E154668",
+              "batchCode": "B8-12-7-25",
+              "useByDate": "",
+              "tempCheck": "Temp: 1.0°C",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Pawan"
+            },
+            {
+              "date": "10/08/2025",
+              "time": "09:40",
+              "supplier": "BEYOND INDIA",
+              "product": "LEG/MARYLAND FILLET QUARTER",
+              "qty": 210,
+              "orderNumber": "E154668",
+              "invoiceNumber": "E154668",
+              "batchCode": "B.B.",
+              "useByDate": "",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Pawan"
+            },
+            {
+              "date": "10/08/2025",
+              "time": "09:40",
+              "supplier": "BEYOND INDIA",
+              "product": "LEG/MARYLAND FILLET (SOFF)",
+              "qty": 1,
+              "orderNumber": "E154668",
+              "invoiceNumber": "E154668",
+              "batchCode": "B.B.",
+              "useByDate": "12/12/2025",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "Pawan"
+            }
+          ]
+        }
+      ],
+      "corrections": []
+    }
+  },
+  "kng foods pty ltd-invoice": {
+    "id": "kng foods pty ltd-invoice",
+    "supplier": "KNG Foods PTY LTD",
+    "documentType": "invoice",
+    "extractionTemplate": {
+      "headerLocation": "top",
+      "dateFormat": "DD/MM/YYYY",
+      "timeFormat": "HH:MM",
+      "itemsSection": "center",
+      "quantityFormat": "integer",
+      "priceFormat": "none",
+      "commonFields": {
+        "supplier": "KING FOODS PTY LTD",
+        "documentNumber": "RG614599",
+        "signature": ""
+      },
+      "itemFields": {
+        "product": "product name or description",
+        "quantity": "numeric value with optional unit",
+        "batchCode": "alphanumeric code",
+        "useByDate": "date in various formats"
+      }
+    },
+    "extractionHints": {
+      "datePatterns": [
+        "DD/MM/YYYY"
+      ],
+      "quantityPatterns": [],
+      "itemSeparators": [
+        "new line",
+        "dashed line",
+        "blank space"
+      ],
+      "signatureLocation": "bottom right",
+      "specialInstructions": [
+        "Look for handwritten corrections",
+        "Ignore crossed-out items",
+        "Check for multiple pages",
+        "Verify decimal precision for quantities"
+      ]
+    },
+    "accuracy": {
+      "successRate": 100,
+      "commonErrors": [],
+      "lastUpdated": "2025-07-17T14:45:18.195Z",
+      "extractionCount": 1
+    },
+    "examples": {
+      "goodExtractions": [
+        {
+          "documentDetails": {
+            "supplier": "KING FOODS PTY LTD",
+            "documentNumber": "RG614599",
+            "date": "11/07/2023",
+            "time": "",
+            "receivedBy": "MR ROBY",
+            "signature": ""
+          },
+          "items": [
+            {
+              "date": "11/07/2023",
+              "time": "",
+              "supplier": "KING FOODS PTY LTD",
+              "product": "Cardamom 6-7mm",
+              "qty": 100,
+              "orderNumber": "RG614599",
+              "invoiceNumber": "RG614599",
+              "batchCode": "",
+              "useByDate": "",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "MR ROBY"
+            }
+          ]
+        }
+      ],
+      "corrections": []
+    }
+  },
+  "king foods pty ltd-invoice": {
+    "id": "king foods pty ltd-invoice",
+    "supplier": "King Foods PTY LTD",
+    "documentType": "invoice",
+    "extractionTemplate": {
+      "headerLocation": "top",
+      "dateFormat": "DD/MM/YYYY",
+      "timeFormat": "HH:MM",
+      "itemsSection": "center",
+      "quantityFormat": "integer",
+      "priceFormat": "none",
+      "commonFields": {
+        "supplier": "KING FOODS PTY LTD",
+        "documentNumber": "RG614599",
+        "signature": ""
+      },
+      "itemFields": {
+        "product": "product name or description",
+        "quantity": "numeric value with optional unit",
+        "batchCode": "alphanumeric code",
+        "useByDate": "date in various formats"
+      }
+    },
+    "extractionHints": {
+      "datePatterns": [
+        "DD/MM/YYYY"
+      ],
+      "quantityPatterns": [],
+      "itemSeparators": [
+        "new line",
+        "dashed line",
+        "blank space"
+      ],
+      "signatureLocation": "bottom right",
+      "specialInstructions": [
+        "Look for handwritten corrections",
+        "Ignore crossed-out items",
+        "Check for multiple pages",
+        "Verify decimal precision for quantities"
+      ]
+    },
+    "accuracy": {
+      "successRate": 100,
+      "commonErrors": [],
+      "lastUpdated": "2025-07-17T14:47:27.624Z",
+      "extractionCount": 1
+    },
+    "examples": {
+      "goodExtractions": [
+        {
+          "documentDetails": {
+            "supplier": "KING FOODS PTY LTD",
+            "documentNumber": "RG614599",
+            "date": "11/07/2025",
+            "time": "",
+            "receivedBy": "MR ROBY",
+            "signature": ""
+          },
+          "items": [
+            {
+              "date": "11/07/2025",
+              "time": "",
+              "supplier": "KING FOODS PTY LTD",
+              "product": "Cardamom 6-7mm",
+              "qty": 100,
+              "orderNumber": "RG614599",
+              "invoiceNumber": "RG614599",
+              "batchCode": "",
+              "useByDate": "",
+              "tempCheck": "",
+              "productIntegrityCheck": "OK",
+              "weightCheck": "OK",
+              "comments": "",
+              "signature": "MR ROBY"
+            }
+          ]
+        }
+      ],
+      "corrections": []
+    }
+  }
+}

@@ -3,11 +3,11 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Trash2, Plus, AlertCircle, Check } from "lucide-react"
+import { Trash2, Plus, AlertCircle, Check, Copy } from "lucide-react"
 import { ExtractedData } from "@/types"
 import { format, parse } from 'date-fns'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 interface DataTableProps {
   data: ExtractedData[]
@@ -18,8 +18,8 @@ function convertDateToISO(dateString: string | undefined | null): string {
   if (!dateString) return '';
   
   try {
-    // First check if it's already in ISO format
-    if (dateString.includes('-')) {
+    // First check if it's already in ISO format (YYYY-MM-DD)
+    if (dateString.includes('-') && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const date = new Date(dateString);
       if (!isNaN(date.getTime())) {
         return dateString;
@@ -30,9 +30,12 @@ function convertDateToISO(dateString: string | undefined | null): string {
     const parts = dateString.split('/');
     if (parts.length === 3) {
       const [day, month, year] = parts.map(part => parseInt(part.trim(), 10));
-      const date = new Date(year, month - 1, day); // Month is 0-indexed
+      // Create date in local timezone to avoid timezone offset issues
+      const date = new Date(year, month - 1, day);
       if (!isNaN(date.getTime())) {
-        return date.toISOString().split('T')[0];
+        // Format as YYYY-MM-DD for HTML date input
+        const isoDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        return isoDate;
       }
     }
   } catch (error) {
@@ -44,6 +47,8 @@ function convertDateToISO(dateString: string | undefined | null): string {
 
 export default function DataTable({ data, setData }: DataTableProps) {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  const [focusedField, setFocusedField] = useState<{row: number, field: keyof ExtractedData} | null>(null)
+  const inputRefs = useRef<Record<string, HTMLInputElement>>({})
   
   const validateField = (field: keyof ExtractedData, value: string | number): string => {
     
@@ -110,10 +115,15 @@ export default function DataTable({ data, setData }: DataTableProps) {
       newData[index] = { ...newData[index], [field]: parsedValue }
     } else if (field === 'date') {
       try {
-        // Try to parse and format the date consistently
-        const parsedDate = parse(value, 'yyyy-MM-dd', new Date())
-        const formattedDate = format(parsedDate, 'dd/MM/yyyy')
-        newData[index] = { ...newData[index], [field]: formattedDate }
+        // Handle HTML date input (YYYY-MM-DD format)
+        if (value.includes('-')) {
+          const parsedDate = parse(value, 'yyyy-MM-dd', new Date())
+          const formattedDate = format(parsedDate, 'dd/MM/yyyy')
+          newData[index] = { ...newData[index], [field]: formattedDate }
+        } else {
+          // Handle manual text input
+          newData[index] = { ...newData[index], [field]: value }
+        }
       } catch (error: unknown) {
         console.warn(`Failed to parse date: ${error instanceof Error ? error.message : 'Unknown error'}`)
         // If parsing fails, keep the original value
@@ -292,9 +302,10 @@ export default function DataTable({ data, setData }: DataTableProps) {
                   <TableCell key={field} className={getColumnWidth(field)}>
                     <div className="relative">
                       <Input
+                        ref={(el) => setInputRef(index, field as keyof ExtractedData, el)}
                         type={config.type === 'decimal' ? 'number' : config.type}
                         step={config.type === 'decimal' ? '0.01' : undefined}
-                        className={`w-full px-2 py-1 ${hasError ? 'border-red-500 bg-red-50' : ''}`}
+                        className={`w-full px-2 py-1 ${hasError ? 'border-red-500 bg-red-50' : ''} ${focusedField?.row === index && focusedField?.field === field ? 'ring-2 ring-blue-500' : ''}`}
                         value={
                           config.type === 'date'
                             ? convertDateToISO(item[field as keyof ExtractedData] as string | undefined)
@@ -305,7 +316,10 @@ export default function DataTable({ data, setData }: DataTableProps) {
                             : (item[field as keyof ExtractedData]?.toString() || '')
                         }
                         onChange={(e) => handleEdit(index, field as keyof ExtractedData, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, index, field as keyof ExtractedData)}
+                        onFocus={() => handleFocus(index, field as keyof ExtractedData)}
                         placeholder={config.type === 'decimal' ? '0.00' : `Enter ${config.display.toLowerCase()}`}
+                        title={`Row ${index + 1} - ${config.display}\n\nKeyboard shortcuts:\n• Ctrl+D: Copy to field below\n• Ctrl+Shift+D: Copy entire row below\n• Enter: Move to same field in next row`}
                       />
                       {hasError && (
                         <div className="absolute -bottom-5 left-0 text-xs text-red-600">
@@ -316,16 +330,28 @@ export default function DataTable({ data, setData }: DataTableProps) {
                   </TableCell>
                 )
               })}
-              <TableCell className="min-w-[80px] text-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(index)}
-                  className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
-                  title="Delete item"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+              <TableCell className="min-w-[120px] text-center">
+                <div className="flex items-center justify-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyEntireRowToBelow(index)}
+                    className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600"
+                    title="Copy entire row to below (Ctrl+Shift+D)"
+                    disabled={index >= data.length - 1}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDelete(index)}
+                    className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                    title="Delete item"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
@@ -334,10 +360,19 @@ export default function DataTable({ data, setData }: DataTableProps) {
       </div>
       
       {/* Help Text */}
-      <div className="text-xs text-gray-500 space-y-1">
+      <div className="text-xs text-gray-500 space-y-2">
         <p>• Click in any cell to edit the extracted data</p>
         <p>• Red highlighted fields contain validation errors that need to be fixed</p>
         <p>• Use the &quot;Add Item&quot; button to manually add additional items</p>
+        <div className="mt-2 p-3 bg-blue-50 rounded border">
+          <p className="font-medium text-blue-800 mb-2">⌨️ Keyboard Shortcuts:</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+            <p>• <kbd className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">Ctrl+D</kbd> - Copy field to below</p>
+            <p>• <kbd className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">Ctrl+Shift+D</kbd> - Copy entire row</p>
+            <p>• <kbd className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">Enter</kbd> - Move to next row</p>
+            <p>• <kbd className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">Tab</kbd> - Move to next field</p>
+          </div>
+        </div>
       </div>
     </div>
   )
