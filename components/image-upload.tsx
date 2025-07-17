@@ -89,10 +89,19 @@ export default function ImageUpload({ onDataExtracted }: ImageUploadProps) {
       
       onDataExtracted(result.data);
       
+      // Enhanced success message with memory information
+      const memoryInfo = result.memoryUsed ? ' (using learned patterns)' : '';
+      const confidenceInfo = result.confidence ? ` - ${result.confidence}% confidence` : '';
+      
       toast({
         title: "Success",
-        description: `Successfully extracted ${result.data.length} item(s) from image`,
+        description: `Successfully extracted ${result.data.length} item(s) from image${memoryInfo}${confidenceInfo}`,
       })
+      
+      // Log reasoning for debugging
+      if (result.reasoning) {
+        console.log('Extraction reasoning:', result.reasoning);
+      }
     } catch (error) {
       console.error('Error:', error)
       setStatus('Error occurred')

@@ -2,6 +2,8 @@
 
 import OpenAI from 'openai';
 import { ChatCompletion } from 'openai/resources';
+import { documentMemory } from '@/lib/document-memory';
+import { reasoningEngine } from '@/lib/advanced-reasoning';
 
 // Type for OpenAI API errors
 interface OpenAIError {
@@ -11,6 +13,17 @@ interface OpenAIError {
     code?: string;
 }
 
+// Enhanced extraction result with reasoning
+interface EnhancedExtractionResult {
+    success: boolean;
+    data: unknown[];
+    error?: string;
+    reasoning?: string;
+    confidence?: number;
+    memoryUsed?: boolean;
+    supplierLearned?: boolean;
+}
+
 // Initialize OpenAI client with timeout and retry configuration
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -18,7 +31,12 @@ const openai = new OpenAI({
     maxRetries: 2, // Reduced retries for faster failure
 });
 
-async function fetchWithRetry(base64Image: string, attempt: number = 1, maxRetries: number = 2): Promise<ChatCompletion> {
+async function fetchWithRetry(
+    base64Image: string, 
+    prompt: string,
+    attempt: number = 1, 
+    maxRetries: number = 2
+): Promise<ChatCompletion> {
     try {
         console.log(`Attempt ${attempt} of ${maxRetries} for OpenAI API call`);
         
@@ -35,46 +53,7 @@ async function fetchWithRetry(base64Image: string, attempt: number = 1, maxRetri
                     content: [
                         {
                             type: "text",
-                            text: `Extract data from this document image (receipt/invoice/docket) into JSON format.
-
-**EXTRACT:**
-- **Company**: Business name
-- **Document Number**: Transaction/Invoice ID
-- **Date**: Document date (DD/MM/YYYY format)
-- **Items**: All products with quantities
-- **Signature**: Person who signed/received
-
-**RULES:**
-- Use handwritten corrections over printed text
-- Ignore crossed-out items
-- Convert quantities to decimal numbers
-- Use "OK" for integrity/weight checks if not specified
-
-**JSON FORMAT:**
-{
-  "documentDetails": {
-    "supplier": "Company Name",
-    "documentNumber": "Number",
-    "date": "DD/MM/YYYY",
-    "time": "HH:MM",
-    "receivedBy": "Person Name",
-    "signature": "Signature Name"
-  },
-  "items": [
-    {
-      "product": "Product Name",
-      "quantity": 0.0,
-      "batchCode": "",
-      "useByDate": "",
-      "tempCheck": "",
-      "productIntegrityCheck": "OK",
-      "weightCheck": "OK",
-      "comments": ""
-    }
-  ]
-}
-
-Extract ALL items and maintain numerical precision.`,
+                            text: prompt,
                         },
                         {
                             type: "image_url",
@@ -137,11 +116,11 @@ Extract ALL items and maintain numerical precision.`,
         
         console.log(`Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return fetchWithRetry(base64Image, attempt + 1, maxRetries);
+        return fetchWithRetry(base64Image, prompt, attempt + 1, maxRetries);
     }
 }
 
-export async function extractDataFromImage(base64Image: string) {
+export async function extractDataFromImage(base64Image: string): Promise<EnhancedExtractionResult> {
     try {
         // Validate input
         if (!base64Image || base64Image.length === 0) {
@@ -161,8 +140,42 @@ export async function extractDataFromImage(base64Image: string) {
             };
         }
         
-        console.log('Starting data extraction from image...');
-        const response = await fetchWithRetry(base64Image);
+        console.log('Starting enhanced data extraction with memory and reasoning...');
+        
+        // Step 1: Quick supplier detection for memory lookup
+        const supplierDetectionPrompt = `Analyze this document image and identify ONLY:
+1. The supplier/company name
+2. The document type (receipt/invoice/docket/purchase_order)
+
+Return response as JSON format: {"supplier": "Company Name", "documentType": "type"}`;
+        
+        console.log('Detecting supplier for memory lookup...');
+        const supplierResponse = await fetchWithRetry(base64Image, supplierDetectionPrompt);
+        
+        let supplierInfo = null;
+        let documentFormat = null;
+        
+        try {
+            supplierInfo = JSON.parse(supplierResponse.choices[0].message.content || '{}');
+            console.log('Supplier detected:', supplierInfo);
+            
+            // Check if we have learned this supplier's format
+            if (supplierInfo.supplier && supplierInfo.documentType) {
+                documentFormat = await documentMemory.getDocumentFormat(
+                    supplierInfo.supplier, 
+                    supplierInfo.documentType
+                );
+                console.log('Document format found:', documentFormat ? 'Yes' : 'No');
+            }
+        } catch {
+            console.log('Supplier detection failed, proceeding with general extraction');
+        }
+        
+        // Step 2: Generate enhanced extraction prompt
+        const enhancedPrompt = generateEnhancedExtractionPrompt(documentFormat);
+        
+        console.log('Performing extraction with enhanced reasoning...');
+        const response = await fetchWithRetry(base64Image, enhancedPrompt);
         console.log('OpenAI API response received successfully');
 
         if (!response.choices?.[0]?.message) {
@@ -275,8 +288,8 @@ export async function extractDataFromImage(base64Image: string) {
                     supplier: documentDetails.supplier || '',
                     product: item.product || `Item ${index + 1}`,
                     qty: parseQuantity(item.quantity),
-                    orderNumber: documentDetails.documentNumber || documentDetails.orderNumber || '',
-                    invoiceNumber: documentDetails.documentNumber || documentDetails.invoiceNumber || '',
+                    orderNumber: documentDetails.documentNumber || '',
+                    invoiceNumber: documentDetails.documentNumber || '',
                     batchCode: item.batchCode || '',
                     useByDate: formatDate(item.useByDate) || '',
                     tempCheck: item.tempCheck || '',
@@ -286,6 +299,8 @@ export async function extractDataFromImage(base64Image: string) {
                     signature: documentDetails.signature || documentDetails.receivedBy || ''
                 };
             });
+            
+            console.log('Processed data structure:', JSON.stringify(processedData, null, 2));
 
             // Enhanced validation and error handling
             if (processedData.length === 0) {
@@ -309,7 +324,34 @@ export async function extractDataFromImage(base64Image: string) {
             });
 
             console.log('Final processed data:', JSON.stringify(validatedData, null, 2));
-            return { success: true, data: validatedData };
+            
+            // Step 3: Learn from successful extraction
+            if (supplierInfo?.supplier && supplierInfo?.documentType && validatedData.length > 0) {
+                console.log('Learning from successful extraction...');
+                await documentMemory.learnFromExtraction(
+                    supplierInfo.supplier,
+                    supplierInfo.documentType,
+                    { documentDetails, items: validatedData },
+                    { /* image analysis would go here */ }
+                );
+            }
+            
+            // Step 4: Generate reasoning summary
+            const reasoningSummary = reasoningEngine.generateReasoningSummary(
+                { documentDetails, items: validatedData },
+                documentFormat || undefined
+            );
+            
+            console.log('Reasoning summary:', reasoningSummary);
+            
+            return { 
+                success: true, 
+                data: validatedData,
+                reasoning: reasoningSummary,
+                confidence: documentFormat?.accuracy.successRate || 85,
+                memoryUsed: !!documentFormat,
+                supplierLearned: !!supplierInfo?.supplier
+            };
         } catch (parseError) {
             console.error('JSON Parse error:', parseError);
             console.error('Raw content that failed to parse:', content);
@@ -326,4 +368,65 @@ export async function extractDataFromImage(base64Image: string) {
             error: error instanceof Error ? error.message : 'Failed to extract data from image'
         };
     }
+}
+
+// Generate enhanced extraction prompt with JSON requirement
+function generateEnhancedExtractionPrompt(documentFormat?: any): string {
+    const basePrompt = `You are an expert document data extraction AI. Analyze this document image and extract structured data.
+
+**DOCUMENT ANALYSIS:**
+- Identify the document type (receipt, invoice, docket, purchase order)
+- Extract supplier/company name from header
+- Find all items with quantities and descriptions
+- Look for dates, document numbers, and signatures
+- Prioritize handwritten corrections over printed text
+- Ignore completely crossed-out items
+
+**EXTRACTION RULES:**
+- Convert dates to DD/MM/YYYY format
+- Extract quantities as decimal numbers (e.g., 5.5 not "5.5 kg")
+- Use "OK" for quality checks if not specified
+- Include all visible items, even if partially readable
+- Maintain numerical precision for quantities
+
+**CRITICAL: You must return valid JSON format with this structure:**
+
+{
+  "documentDetails": {
+    "supplier": "Company Name",
+    "documentNumber": "Transaction/Invoice ID",
+    "date": "DD/MM/YYYY",
+    "time": "HH:MM",
+    "receivedBy": "Person Name",
+    "signature": "Signature Name"
+  },
+  "items": [
+    {
+      "product": "Product Description",
+      "quantity": 0.0,
+      "batchCode": "",
+      "useByDate": "",
+      "tempCheck": "",
+      "productIntegrityCheck": "OK",
+      "weightCheck": "OK",
+      "comments": ""
+    }
+  ]
+}
+
+Return ONLY the JSON object - no additional text or formatting.`;
+
+    if (documentFormat) {
+        return basePrompt + `
+
+**LEARNED PATTERNS FOR ${documentFormat.supplier}:**
+- Expected date format: ${documentFormat.extractionTemplate?.dateFormat || 'DD/MM/YYYY'}
+- Quantity format: ${documentFormat.extractionTemplate?.quantityFormat || 'decimal'}
+- Success rate: ${documentFormat.accuracy?.successRate || 0}%
+- Previous extractions: ${documentFormat.accuracy?.extractionCount || 0}
+
+**APPLY THESE PATTERNS:** Use the learned format patterns above for more accurate extraction.`;
+    }
+
+    return basePrompt;
 }

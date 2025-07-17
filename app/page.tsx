@@ -3,16 +3,18 @@
 import { useState, useEffect } from "react"
 import ImageUpload from "@/components/image-upload"
 import DataTable from "@/components/data-table"
+import MemoryStatus from "@/components/memory-status"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { appendSheetData } from "@/app/actions/google-sheets.action"
 import { ExtractedData } from "@/types"
-import { CheckCircle, Upload, Table, ArrowLeft, Loader2 } from "lucide-react"
+import { CheckCircle, Upload, Table, ArrowLeft, Loader2, Brain } from "lucide-react"
 import { suppressBrowserExtensionErrors, handleApplicationError } from "@/lib/error-handler"
 
 export default function Home() {
   const [extractedData, setExtractedData] = useState<ExtractedData[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showMemoryStatus, setShowMemoryStatus] = useState(false)
   const { toast } = useToast()
   
   // Initialize error suppression for browser extensions
@@ -36,23 +38,40 @@ export default function Home() {
     try {
       console.log('Raw extracted data:', JSON.stringify(extractedData, null, 2));
   
-      // Transform each row of data for Google Sheets
-      const transformedData = extractedData.map(item => [
-        item.date || '', // DATE
-        item.time || '', // TIME
-        item.supplier || '', // SUPPLIER
-        item.product || '', // PRODUCT
-        item.qty || '', // QTY
-        item.orderNumber || '', // ORDER NUMBER
-        item.invoiceNumber || '', // INVOICE NUMBER
-        item.batchCode || '', // BATCH CODE
-        item.useByDate || '', // USE BY DATE
-        item.tempCheck || 'OK', // TEMP CHECK
-        item.productIntegrityCheck || 'OK', // PRODUCT INTEGRITY CHECK
-        item.weightCheck || 'OK', // WEIGHT CHECK
-        item.comments || '', // COMMENTS
-        item.signature || ''  // SIGNATURE
-    ]);
+      // Transform each row of data for Google Sheets with proper validation
+      const transformedData = extractedData.map((item, index) => {
+        console.log(`Processing item ${index + 1}:`, item);
+        
+        return [
+          item.date || '', // DATE
+          item.time || '', // TIME
+          item.supplier || '', // SUPPLIER
+          item.product || '', // PRODUCT
+          Number(item.qty) || 0, // QTY - ensure it's a number
+          item.orderNumber || '', // ORDER NUMBER
+          item.invoiceNumber || '', // INVOICE NUMBER
+          item.batchCode || '', // BATCH CODE
+          item.useByDate || '', // USE BY DATE
+          item.tempCheck || 'OK', // TEMP CHECK
+          item.productIntegrityCheck || 'OK', // PRODUCT INTEGRITY CHECK
+          item.weightCheck || 'OK', // WEIGHT CHECK
+          item.comments || '', // COMMENTS
+          item.signature || ''  // SIGNATURE
+        ];
+      });
+      
+      console.log('Data being sent to Google Sheets:', JSON.stringify(transformedData, null, 2));
+      
+      // Validate that we have valid data
+      if (transformedData.length === 0) {
+        throw new Error('No valid data to submit');
+      }
+      
+      // Validate that each row has the expected number of columns
+      const invalidRows = transformedData.filter(row => row.length !== 14);
+      if (invalidRows.length > 0) {
+        console.warn('Some rows have unexpected column count:', invalidRows);
+      }
   
       console.log('Transformed data:', JSON.stringify(transformedData, null, 2));
   
@@ -92,11 +111,29 @@ export default function Home() {
       <div className="container mx-auto p-4">
         {/* Header */}
         <div className="text-center py-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Document Data Extraction</h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">AI-Powered Document Extraction</h1>
+          <p className="text-gray-600 max-w-2xl mx-auto mb-4">
             Upload receipts, invoices, or delivery dockets to automatically extract and organize data for Google Sheets
           </p>
+          <div className="flex justify-center gap-4">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowMemoryStatus(!showMemoryStatus)}
+              className="flex items-center gap-2"
+            >
+              <Brain className="h-4 w-4" />
+              {showMemoryStatus ? 'Hide' : 'Show'} AI Memory
+            </Button>
+          </div>
         </div>
+        
+        {/* Memory Status */}
+        {showMemoryStatus && (
+          <div className="mb-8">
+            <MemoryStatus />
+          </div>
+        )}
 
         {/* Progress Steps */}
         <div className="flex justify-center items-center mb-8 max-w-2xl mx-auto">
